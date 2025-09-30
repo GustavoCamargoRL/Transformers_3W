@@ -761,13 +761,19 @@ def load_3w_novo(path_to_folder, window_length=1024, preprocessing=None,
 
     # Some cases have more than one file, so concatenate all into classes
     cases = {}
+    max_class=9
     for case in cases_dict:
         try:
             data = np.concatenate(cases_dict[case], axis=0)
 
             # Append only if not empty
             if len(data) != 0:
-                cases[case] = data
+                # Corrigindo os "intermediários"
+                if '10' in str(case):
+                    max_class+=1
+                    cases[max_class] = data
+                else:
+                    cases[case] = data
 
         except ValueError:
             continue

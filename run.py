@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
-from dataset_process.dataset_process import MyDataset
+# from dataset_process.dataset_process import MyDataset
 import torch.optim as optim
 from time import time
 from tqdm import tqdm
@@ -53,7 +53,7 @@ draw_key = 1  # Images will only be saved when greater than or equal to draw_key
 file_name = path.split('\\')[-1][0:path.split('\\')[-1].index('.')]  # Get the file name
 
 # Hyperparameter settings
-EPOCH = 50
+EPOCH = 5
 BATCH_SIZE = 40
 LR = 1e-4
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # Select device: CPU or GPU
@@ -71,7 +71,8 @@ mask = True  # In the dual tower configuration: score=input, default has no mask
 # Optimizer selection
 optimizer_name = 'Adagrad'
 
-x_train, x_test, y_train, y_test, n_classes, df = load_3w("../data/", preprocessing=None, scaler=StandardScaler())
+dataset_path = r"D:\Profissional\DATASETS\3W_novo"
+x_train, x_test, y_train, y_test, n_classes = load_3w_novo(dataset_path, window_length=16, preprocessing=None, scaler=StandardScaler())
 
 
 # train_dataset = MyDataset(path, 'train')
@@ -212,7 +213,7 @@ def train():
                          time_cost=time_cost, EPOCH=EPOCH, draw_key=draw_key, reslut_figure_path=reslut_figure_path,
                          file_name=file_name,
                          optimizer_name=optimizer_name, LR=LR, pe=pe, mask=mask)
-    
+
     plot_confusion_matrix(test_dataloader, class_names=[str(i) for i in range(d_output)])
 
 
