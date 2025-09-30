@@ -1,16 +1,70 @@
 # This file contains functions to be imported by your runs
 import numpy as np
 import pandas as pd
+import os
 from glob import glob
 from scipy.io import loadmat
-from scipy.fft import fft
+from scipy.fft import fft, rfft
 from scipy.signal import stft
 from pywt import cwt
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
 from re import search
 from ntpath import basename
+from seaborn import heatmap
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+
+def find_inds(ch:str, st:str):
+    '''
+    Function to get the index(es) of the ch character in the st string.
+    '''
+    indexes=[]
+    num=0
+    while(True):
+        if ch in st[num:]:
+            index0=st[num:].index(ch)
+            indexes.append(index0+num)
+            num=num+index0+1
+        else:
+            break
+    return indexes
+
+
+def get_files(path: str, *, data_type: str='', filter: str=None):
+    """
+    Function to return all files within the path as a dictionary.
+
+    Args:
+        path: path to mother directory that includes folders and files.
+        data_type: data type of files; '' if all types. Defaults to ''.
+        filter: if given, includes only files with this string in its \
+            path. Defaults to None.
+
+    Returns:
+        Dictionary containing folders as keys and files as values.
+    """
+    files={}
+    for r,_,f in os.walk(path):
+        # Ignore files not from selected operation modes
+        if filter is not None:
+            if not any(element in file for element in filter):
+                continue
+
+        # Walk over files
+        for file in f:
+            if data_type not in os.path.splitext(file)[1]:
+                continue
+
+            indexes = find_inds('\\', r)
+            operation_mode = r[indexes[-1]+1:]
+
+            if operation_mode not in files:
+                files[operation_mode] = {}
+
+            files[operation_mode][file] = None
+    return files
 
 
 def array_to_oh(array__):
@@ -88,7 +142,7 @@ def perform_stft(input, nperseg=64, axis=1):
     return np.moveaxis(np.abs(Z),-1,axis+1)
 
 
-def perform_cwt(input, length=20, axis=1):
+def perform_cwt(input, length=None, axis=1):
     """
     Apply CWT transform to input data
 
@@ -131,7 +185,7 @@ def perform_image(input, axis=1):
 
 
 def organize_train_test(cases, window_length, preprocessing=None,
-                        test_size=0.2, scaler=None, dataframes=None):
+                        test_size=0.2, scaler=None):
     """
     Function that applies preprocessing, splits train/test and scales
     """
@@ -143,14 +197,16 @@ def organize_train_test(cases, window_length, preprocessing=None,
     x_test = []
     y_train = []
     y_test = []
-    for i, case in enumerate(cases):
+
+    # Create iterator
+    iterator = cases.items() if isinstance(cases, dict) else enumerate(cases)
+
+    for i, case in iterator:
         # Apply windowing function (slicing function)
         x = windowing_vectorized(case, window_length=window_length)
-        #print(len(x[0]))
-        #print(i)
+
         # Create label
         y = np.ones(len(x)) * i
-        #print(y)
 
         # Apply preprocessing
         if preprocessing:
@@ -192,7 +248,7 @@ def organize_train_test(cases, window_length, preprocessing=None,
     # Return shuffled
     return x_train[p_train], x_test[p_test], \
            y_train[p_train], y_test[p_test], \
-           n_classes, dataframes
+           n_classes
 
 
 def load_cwru(path_to_folder, window_length=1024, preprocessing=None,
@@ -221,7 +277,7 @@ def load_cwru(path_to_folder, window_length=1024, preprocessing=None,
             cases.append(loaded)
 
     return organize_train_test(cases, window_length,
-                               preprocessing, test_size, scaler, dataframes=None)
+                               preprocessing, test_size, scaler)
 
 
 def load_mfpt(path_to_folder, window_length=1024, preprocessing=None,
@@ -282,7 +338,7 @@ def load_mfpt(path_to_folder, window_length=1024, preprocessing=None,
     cases.insert(1, outer)
 
     return organize_train_test(cases, window_length,
-                               preprocessing, test_size, scaler, dataframes=None)
+                               preprocessing, test_size, scaler)
 
 
 def load_jnu(path_to_folder, window_length=1024, preprocessing=None,
@@ -310,7 +366,7 @@ def load_jnu(path_to_folder, window_length=1024, preprocessing=None,
             cases.append(loaded)
 
     return organize_train_test(cases, window_length,
-                               preprocessing, test_size, scaler, dataframes=None)
+                               preprocessing, test_size, scaler)
 
 
 def load_xjtu(path_to_folder, window_length=1024, preprocessing=None,
@@ -370,7 +426,7 @@ def load_xjtu(path_to_folder, window_length=1024, preprocessing=None,
             continue
 
     return organize_train_test(cases, window_length,
-                               preprocessing, test_size, scaler, dataframes=None)
+                               preprocessing, test_size, scaler)
 
 
 def load_seu(path_to_folder, window_length=1024, preprocessing=None,
@@ -402,7 +458,7 @@ def load_seu(path_to_folder, window_length=1024, preprocessing=None,
             cases.append(loaded)
 
     return organize_train_test(cases, window_length,
-                               preprocessing, test_size, scaler, dataframes=None)
+                               preprocessing, test_size, scaler)
 
 
 def load_uoc(path_to_folder, window_length=1024, preprocessing=None,
@@ -438,7 +494,7 @@ def load_uoc(path_to_folder, window_length=1024, preprocessing=None,
             cases.append(class_element)
 
     return organize_train_test(cases, window_length,
-                               preprocessing, test_size, scaler, dataframes=None)
+                               preprocessing, test_size, scaler)
 
 
 def load_pu(path_to_folder, window_length=1024, preprocessing=None,
@@ -450,8 +506,9 @@ def load_pu(path_to_folder, window_length=1024, preprocessing=None,
     dataset_files = glob(f'{path_to_folder}/**/*.mat', recursive=True)
 
     # Subdatasets used by Zhao
-    include = ['KA04', 'KA15', 'KA16', 'KA22', 'KA30', 'KB23', 'KB24',
-               'KB27', 'KI14', 'KI16', 'KI17', 'KI18', 'KI21']
+    include = ['K001', 'K002', 'K003', 'K004', 'KA04', 'KA15',
+               'KA16', 'KA22', 'KA30', 'KB23', 'KB24', 'KB27',
+               'KI14', 'KI16', 'KI17', 'KI18', 'KI21']
 
     # Specific condition used by Zhao
     conditions = ['N15_M07_F10']
@@ -484,19 +541,25 @@ def load_pu(path_to_folder, window_length=1024, preprocessing=None,
 
     # Some cases have more than one file, so concatenate all into classes
     cases = []
+    healthy_cases = []
+    healthy = ['K001', 'K002', 'K003', 'K004']
 
     for case in cases_dict:
         try:
             data = np.concatenate(cases_dict[case], axis=0)
-            cases.append(data)
+            if case in healthy:
+                healthy_cases.append(data)
+            else:
+                cases.append(data)
         except ValueError:
             continue
+    cases.insert(0, np.concatenate(healthy_cases))
 
     return organize_train_test(cases, window_length,
-                               preprocessing, test_size, scaler, dataframes=None)
+                               preprocessing, test_size, scaler)
 
 
-def load_3w(path_to_folder, window_length=64, preprocessing=None,
+def load_3w(path_to_folder, window_length=1024, preprocessing=None,
             test_size=0.2, scaler=None):
     """
     Load 3W dataset, using each folder as a class
@@ -504,32 +567,29 @@ def load_3w(path_to_folder, window_length=64, preprocessing=None,
     # Getting data files
     dataset_files = glob(f'{path_to_folder}/**/*.csv', recursive=True)
 
-
     # Cases considered
-    #cases = [f'\\3W\\{i}\\' for i in range(9)] # All cases
-    cases = [f'\\{i}\\' for i in range(9)] # All cases
+    cases = [f'\\3W\\{i}\\' for i in range(9)] # All cases
+
     # Excluding HAND DRAWN and SIMULATED files if desired
     exclude = ['DRAWN', 'SIMULATED']
 
     # Cases dict created with empty lists
     cases_dict = {element: [] for element in cases}
-    dataframes = []
+
     for file in dataset_files:
+
         # Ignore cases in the exclude list
-        #if any(element in file for element in exclude):
-        #    continue
+        if any(element in file for element in exclude):
+            continue
 
         # Add this file's data to the specific case
         for case in cases:
-            if (case in file):
+            if case in file:
                 # Load file
-                dataframe = pd.read_csv(file)
                 loaded = pd.read_csv(file, sep=',', header=0)
-                dataframes.append(dataframe)
 
                 # Drop columns 0 (timestamp), 7 (full nan) and 8 (class)
-                loaded.drop(loaded.columns[[0,1,7,8,9]], axis=1, inplace=True)
-                #loaded.drop(loaded.columns[[0,7]], axis=1, inplace=True)
+                loaded.drop(loaded.columns[[0,7,9]], axis=1, inplace=True)
 
                 # Remove rows with NaNs
                 loaded.dropna(inplace=True)
@@ -538,13 +598,9 @@ def load_3w(path_to_folder, window_length=64, preprocessing=None,
                 loaded = np.array(loaded)
 
                 cases_dict[case].append(loaded)
-        
 
     # Some cases have more than one file, so concatenate all into classes
     cases = []
-    dados = pd.concat(dataframes, ignore_index=True)
-
-    print(dados.head())
 
     # Convert from dictionary to list, which is the format of other load funcs
     for case in cases_dict:
@@ -554,19 +610,18 @@ def load_3w(path_to_folder, window_length=64, preprocessing=None,
             # Append only if not empty
             if len(data) != 0:
                 # Append to first position if healthy, append to end otherwise
-                if case == '\\0\\':
+                if case == '\\3W\\0\\':
                     cases.insert(0,data)
                 else:
                     cases.append(data)
         except ValueError:
             continue
-    
 
     return organize_train_test(cases, window_length,
-                               preprocessing, test_size, scaler,dados)
+                               preprocessing, test_size, scaler)
 
 
-def load_3w_v2(path_to_folder, window_length=64, preprocessing=None,
+def load_3w_v2(path_to_folder, window_length=1024, preprocessing=None,
             test_size=0.2, scaler=None, single_class: int=None):
     """
     Load 3W dataset, using each folder as a class
@@ -576,9 +631,9 @@ def load_3w_v2(path_to_folder, window_length=64, preprocessing=None,
 
     # Cases considered
     if single_class:
-        cases = [f'\\{single_class}\\'] # Using single case
+        cases = [f'\\3W\\{single_class}\\'] # Using single case
     else:
-        cases = [f'\\{i}\\' for i in range(9)] # Using all cases
+        cases = [f'\\3W\\{i}\\' for i in range(9)] # Using all cases
 
     # Excluding HAND DRAWN and SIMULATED files if desired
     exclude = ['DRAWN', 'SIMULATED']
@@ -599,7 +654,7 @@ def load_3w_v2(path_to_folder, window_length=64, preprocessing=None,
         loaded = pd.read_csv(file, sep=',', header=0)
 
         # Drop columns 0 (timestamp) and 7 (full nan)
-        loaded.drop(loaded.columns[[0,1,7,8,9]], axis=1, inplace=True)
+        loaded.drop(loaded.columns[[0,5,6,7,8]], axis=1, inplace=True)
 
         # Remove rows with NaNs
         loaded.dropna(inplace=True)
@@ -628,25 +683,259 @@ def load_3w_v2(path_to_folder, window_length=64, preprocessing=None,
             cases_dict[uni].append(data)
 
     # Some cases have more than one file, so concatenate all into classes
-    cases = []
-
-    # Convert from dictionary to list, which is the format of other load funcs
+    cases = {}
     for case in cases_dict:
         try:
             data = np.concatenate(cases_dict[case], axis=0)
 
             # Append only if not empty
             if len(data) != 0:
-                # Append to first position if healthy, append to end otherwise
-                if case == '0.0':
-                    cases.insert(0,data)
-                else:
-                    cases.append(data)
+                cases[case] = data
+
         except ValueError:
             continue
 
     return organize_train_test(cases, window_length,
-                               preprocessing, test_size, scaler, dataframes=None)
+                               preprocessing, test_size, scaler)
+
+
+def load_3w_novo(path_to_folder, window_length=1024, preprocessing=None,
+            test_size=0.2, scaler=None, cases_to_use=None):
+    """
+    Load 3W dataset, using each folder as a class
+    """
+    # Getting data files
+    dataset_files = glob(f'{path_to_folder}/**/*.parquet', recursive=True)
+
+    # Cases considered
+    if cases_to_use:
+        cases = [f'\\3W_novo\\{i}\\' for i in cases_to_use] # Using informed cases
+    else:
+        cases = [f'\\3W_novo\\{i}\\' for i in range(10)] # Using all cases
+
+    # Excluding HAND DRAWN and SIMULATED files if desired
+    exclude = ['DRAWN', 'SIMULATED']
+
+    # Create empty dict to fill each label in
+    cases_dict = {}
+
+    for file in dataset_files:
+        # Ignore cases not in used cases list
+        if not any(element in file for element in cases):
+            continue
+
+        # Ignore cases in the exclude list
+        if any(element in file for element in exclude):
+            continue
+
+        # Load file
+        loaded = pd.read_parquet(file, engine='pyarrow')
+        loaded = loaded.iloc[-50:,:] #####################################################################
+
+        # Remove rows with NaNs
+        # loaded.dropna(inplace=True) #####################################################################
+
+        # Convert to array
+        loaded = np.array(loaded)
+
+        # Split into x (data) and y (class)
+        # PS: the last column is 'well state', not the failure class -> removed
+        xx = loaded[...,:-2]
+        yy = loaded[...,-2]
+
+        # Get unique classes
+        unique_classes = np.unique(yy)
+
+        # Get data based on their class: each class is a case!
+        for uni in unique_classes:
+            # Get rows of that specific class only
+            condition = np.where(yy==uni)
+            data = xx[condition]
+
+            # Check if this label already exists and create if not
+            if uni not in cases_dict:
+                cases_dict[uni] = []
+
+            # Add data to cases dict
+            cases_dict[uni].append(data)
+
+    # Some cases have more than one file, so concatenate all into classes
+    cases = {}
+    for case in cases_dict:
+        try:
+            data = np.concatenate(cases_dict[case], axis=0)
+
+            # Append only if not empty
+            if len(data) != 0:
+                cases[case] = data
+
+        except ValueError:
+            continue
+
+    return organize_train_test(cases, window_length,
+                               preprocessing, test_size, scaler)
+
+
+def load_pump(path_to_folder, window_length=1024, preprocessing=None,
+                     test_size=0.2, scaler=None, single_class: int=None,
+                     binary_classification=False, healthy_name='defect free',
+                     use_data=['vib', 'aco']):
+    """
+    Load Centrifugal Pump Data dataset, using each folder as a class
+    """
+
+    # Getting data files
+    dataset_files = glob(f'{path_to_folder}/**/*.csv', recursive=True)
+
+    cases = {
+        healthy_name: [],
+        'clogging': [],
+        'inner race': [],
+        'outer race': [],
+        'wheel cut - broken impeller': [],
+    }
+
+    # Matching which data types to use
+    if 'vib' in use_data or 'vib' == use_data:
+        match1 = True
+    if 'aco' in use_data or 'aco' == use_data:
+        match2 = True
+
+    for file in dataset_files:
+        for case in cases:
+            if case in file:
+                loaded_file = np.loadtxt(file)
+                if match1:
+                    cases[case].insert(0, loaded_file)
+                elif match2:
+                    cases[case].append(loaded_file)
+
+    for key in cases:
+        # Concatenate values of dictionary
+        cases[key] = np.concatenate(cases[key], axis=1)
+
+    if binary_classification:
+        anomaly = []
+        for key in cases:
+            if key != healthy_name:
+                anomaly.append(cases[key])
+                del cases[key]
+        anomaly = np.concatenate(anomaly, axis=0)
+        cases['anomaly'] = anomaly
+
+    cases = list(cases.values())
+
+    return organize_train_test(cases, window_length,
+                               preprocessing, test_size, scaler)
+
+
+def load_bancada_labjack(
+        path_to_folder, window_length=1024, preprocessing=None,
+        test_size=0.2, scaler=None
+    ):
+
+    # Load all filepaths within the paths given
+    paths = get_files(path_to_folder, data_type='xls')
+
+    cases_dict = {
+        'healthy': [],
+        'light': [],
+        'heavy': [],
+    }
+
+    for path in paths:
+        for file in paths[path]:
+            filename = os.path.join(path_to_folder, path, file)
+
+            loaded_file = pd.read_csv(filename, sep='\t', header=None)
+            # loaded_file = loaded_file.iloc[:,1:]
+            # loaded_file = loaded_file.iloc[:,1]
+            loaded_file = loaded_file.iloc[:,2]
+
+            for case in cases_dict:
+                if case in path:
+                    cases_dict[case].append(np.array(loaded_file))
+                    break
+
+    cases = []
+
+    for case in cases_dict:
+        cases.append(np.concatenate(cases_dict[case], axis=0))
+
+    return organize_train_test(cases, window_length,
+                               preprocessing, test_size, scaler)
+
+
+def calculate_stats(true_labels, predicted_labels, fig=True, output: str=None,
+                    class_names=['Healthy', 'Anomalous']):
+    """
+    Function to get some basic statistics
+
+    Args:
+        true_labels: y_true
+        predicted_labels: y_pred
+        fig: whether to plot figure or not. Defaults to True.
+        output: path to save figure; if None, fig is not saved. \
+            Defaults to None.
+
+    Returns:
+        dictionary of metrics
+    """
+    # Check if both true and pred have the same labels
+    assert len(true_labels) == len(predicted_labels), \
+        'True labels and predicted labels must have the same length'
+
+    # Calculate confusion matrix stats
+    cf_mx = confusion_matrix(true_labels, predicted_labels)
+    n_classes = len(cf_mx)
+
+    if n_classes != len(class_names):
+        class_names = [f'Class {i}' for i in range(n_classes)]
+
+    # Plot figure
+    if fig:
+        labels=class_names
+        cmap = 'RdYlGn'
+        # cmap = 'Blues'
+        # cmap = 'BuPu'
+        p = heatmap(data=cf_mx,
+                    cmap=cmap, annot=True, linewidths=0.5, cbar=True,
+                    xticklabels=labels,
+                    yticklabels=labels,
+                    fmt='d')
+        p.set_ylabel('True')
+        p.set_xlabel('Pred')
+
+        # Save figure if desired
+        if output != None:
+            fig = p.get_figure()
+            fig.savefig(output)
+
+    # Calculate some stats
+    tot = np.sum(cf_mx)
+    right = np.trace(cf_mx)
+    wrong = tot - right
+
+    sum_line = np.sum(cf_mx, axis=1)
+    sum_column = np.sum(cf_mx, axis=0)
+    right_per_class = np.diagonal(cf_mx)
+    wrong_per_class = sum_line - right_per_class
+
+    acc = right / tot
+
+    true_rate = right_per_class / sum_line # sensitivity, specificity
+    false_rate = 1 - true_rate # false positive/negative rate
+    predictive_value = right_per_class / sum_column # precision, npv
+
+    bal_acc = np.sum(true_rate) / n_classes
+
+    return {'Acc': acc,
+            'Bal Acc': bal_acc,
+            'Sens/Spec/Correctly pred from true': true_rate.tolist(),
+            'Prec/NPV/Correctly true from pred': predictive_value.tolist(),
+            'TN/TP/Right per true class': right_per_class.tolist(),
+            'FP/FN/Wrong per true class': wrong_per_class.tolist(),
+    }
 
 
 def run_model(x_train, x_test, y_train, y_test,
@@ -696,6 +985,7 @@ def run_model(x_train, x_test, y_train, y_test,
         acc = out[1]
 
     return acc
+
 
 def analise(dados):
     from collections import Counter
