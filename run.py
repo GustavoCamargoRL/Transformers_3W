@@ -165,7 +165,6 @@ def test(dataloader, flag='test_set'):
 
         return round((100 * correct / total), 2)
 
-
 # Training function
 def train():
     net.train()
@@ -197,6 +196,8 @@ def train():
                 torch.save(net, f'saved_model/{file_name} batch={BATCH_SIZE}.pkl')
 
         pbar.update()
+
+    os.makedirs("saved_model", exist_ok=True)
     dest_path = f'saved_model/{file_name} {max_accuracy} batch={BATCH_SIZE}.pkl'
     src_path = f'saved_model/{file_name} batch={BATCH_SIZE}.pkl'
     if os.path.exists(dest_path):

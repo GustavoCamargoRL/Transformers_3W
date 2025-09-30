@@ -568,7 +568,7 @@ def load_3w(path_to_folder, window_length=1024, preprocessing=None,
     dataset_files = glob(f'{path_to_folder}/**/*.csv', recursive=True)
 
     # Cases considered
-    cases = [f'\\3W\\{i}\\' for i in range(9)] # All cases
+    cases = [f'{path_to_folder}\\{i}\\' for i in range(9)] # All cases
 
     # Excluding HAND DRAWN and SIMULATED files if desired
     exclude = ['DRAWN', 'SIMULATED']
@@ -631,9 +631,9 @@ def load_3w_v2(path_to_folder, window_length=1024, preprocessing=None,
 
     # Cases considered
     if single_class:
-        cases = [f'\\3W\\{single_class}\\'] # Using single case
+        cases = [f'{path_to_folder}\\{single_class}\\'] # Using single case
     else:
-        cases = [f'\\3W\\{i}\\' for i in range(9)] # Using all cases
+        cases = [f'{path_to_folder}\\{i}\\' for i in range(9)] # Using all cases
 
     # Excluding HAND DRAWN and SIMULATED files if desired
     exclude = ['DRAWN', 'SIMULATED']
@@ -709,12 +709,13 @@ def load_3w_novo(path_to_folder, window_length=1024, preprocessing=None,
 
     # Cases considered
     if cases_to_use:
-        cases = [f'\\3W_novo\\{i}\\' for i in cases_to_use] # Using informed cases
+        cases = [f'{path_to_folder}\\{i}\\' for i in cases_to_use] # Using informed cases
     else:
-        cases = [f'\\3W_novo\\{i}\\' for i in range(10)] # Using all cases
+        cases = [f'{path_to_folder}\\{i}\\' for i in range(10)] # Using all cases
 
     # Excluding HAND DRAWN and SIMULATED files if desired
     exclude = ['DRAWN', 'SIMULATED']
+    # exclude = []
 
     # Create empty dict to fill each label in
     cases_dict = {}
