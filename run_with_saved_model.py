@@ -2,15 +2,19 @@ import torch
 print('Current PyTorch version:', torch.__version__)
 from utils.random_seed import setup_seed
 from torch.utils.data import DataLoader
-from dataset_process.dataset_process import MyDataset
+# from dataset_process.dataset_process import MyDataset
 from utils.heatMap import heatMap_all
 from utils.TSNE import gather_by_tsne
 from utils.TSNE import gather_all_by_tsne
 import numpy as np
 from utils.colorful_line import draw_colorful_line
+from sklearn.preprocessing import StandardScaler
+
+from functions import *
+from run import NumpyDataset
 
 setup_seed(30)
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cpu")
 # Dataset dimensions overview
 # ArabicDigits length=6600  input=93 channel=13 output=10
 # AUSLAN length=1140  input=136 channel=22 output=95
@@ -25,9 +29,8 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # Wafer length=803  input=997 channel=4
 
 # Select the model to run
-save_model_path = 'saved_model/ECG 91.0 batch=2.pkl'
+save_model_path = r'D:\Leonardo\Transformers_3W\saved_model\dataset_3W 88.76 batch=1024.pkl'
 file_name = save_model_path.split('/')[-1].split(' ')[0]
-path = f'E:\PyCharmWorkSpace\\dataset\\MTS_dataset\\{file_name}\\{file_name}.mat'  # Construct dataset path
 
 # Preparation for naming HeatMap
 ACCURACY = save_model_path.split('/')[-1].split(' ')[1]  # Accuracy of the model used
@@ -37,13 +40,19 @@ gather_or_not = False  # Whether to plot clustering diagrams of a single sample 
 gather_all_or_not = True  # Whether to plot clustering diagram of all samples after feature extraction
 
 # Load model
-net = torch.load(save_model_path, map_location=torch.device('cpu'))  # map_location sets device; original pkl may have been trained on GPU in Colab
+net = torch.load(save_model_path, map_location=torch.device("cpu"), weights_only=False)  # map_location sets device; original pkl may have been trained on GPU in Colab
 # Load test dataset
-test_dataset = MyDataset(path, 'test')
+# test_dataset = MyDataset(path, 'test')
+dataset_path = r"D:\Leonardo\3w_novo"
+x_train, x_test, y_train, y_test, n_classes = load_3w_novo(dataset_path, window_length=16, preprocessing=None, scaler=StandardScaler())
+train_dataset = NumpyDataset(x_train, y_train)
+test_dataset = NumpyDataset(x_test, y_test)
+
 test_dataloader = DataLoader(dataset=test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
-print(f'Number of samples with maximum step length: {len(test_dataset.max_length_sample_inTest)}')
-if len(test_dataset.max_length_sample_inTest) == 0:
+# print(f'Number of samples with maximum step length: {len(test_dataset.max_length_sample_inTest)}')
+# if len(test_dataset.max_length_sample_inTest) == 0:
+if 2 == 2:
     gather_or_not = False
     heatMap_or_not = False
     print('No samples with maximum step length found in test set. Cannot draw meaningful heatmap or gather plots. Try another dataset.')

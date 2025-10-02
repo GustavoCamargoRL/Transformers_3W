@@ -1,4 +1,4 @@
-from dataset_process.dataset_process import MyDataset
+# from dataset_process.dataset_process import MyDataset
 import torch
 import numpy as np
 import os
@@ -118,10 +118,10 @@ def gather_all_by_tsne(X: np.ndarray,
 if __name__ == '__main__':
     path = 'E:\\PyCharmWorkSpace\\mtsdata\\ECG\\ECG.mat'  # length=100, input=152, channel=2, output=2
 
-    dataset = MyDataset(path, 'train')
-    X = dataset.train_dataset
-    X = torch.mean(X, dim=1).numpy()
-    Y = dataset.train_label.numpy()
+    # dataset = MyDataset(path, 'train')
+    # X = dataset.train_dataset
+    # X = torch.mean(X, dim=1).numpy()
+    # Y = dataset.train_label.numpy()
 
     # Example usage (provide index and file_name)
-    gather_by_tsne(X, Y, index=0, file_name="ECG_TSNE")
+    # gather_by_tsne(X, Y, index=0, file_name="ECG_TSNE")

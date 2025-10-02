@@ -737,7 +737,8 @@ def load_3w_novo(path_to_folder, window_length=1024, preprocessing=None,
         # loaded = loaded.iloc[-50:,:] #####################################################################
 
         # Remove certain columns
-        columns_to_remove = [0,1,2,3,4,5,6,7,8,9,10,12,13,14,15,16,17,18,19,21,22,23,24,25]
+        columns_to_remove = [ 0,  1,  2,  3,  4,  5,  6,  8,  9, 10, 12, 14, 15, 17, 19, 21, 22, 23, 24, 25]
+        # columns_to_remove = None
         if columns_to_remove:
             loaded.drop(loaded.columns[columns_to_remove], axis=1, inplace=True)
 
@@ -792,7 +793,7 @@ def load_3w_novo(path_to_folder, window_length=1024, preprocessing=None,
 
     np.set_printoptions(suppress=True, precision=2) #####################################################################
     print(f'Percent of nans: {n_nans/n_total*100}%') #####################################################################
-    print(f'Index of columns with more than 20% of nans: {np.where(n_nans/n_total*100>20)}') #####################################################################
+    print(f'Index of columns with more than 27% of nans: {np.where(n_nans/n_total*100>27)}') #####################################################################
 
     return organize_train_test(cases, window_length,
                                preprocessing, test_size, scaler)

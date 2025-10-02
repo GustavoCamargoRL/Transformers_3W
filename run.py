@@ -42,19 +42,19 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # from mytest.gather.main import draw
 
 setup_seed(30)  # Set the random seed
-reslut_figure_path = 'result_figure'  # Path to save result images
+result_figure_path = 'result_figure'  # Path to save result images
 
 # Dataset path selection
 # path = '..\WalkvsRun\WalkvsRun.mat'
-path = '..\AUSLAN\dataset_3W.mat'
+path = r"D:\Leonardo\3w_novo."
 
-test_interval = 5  # Test interval unit: epoch
+test_interval = 1  # Test interval unit: epoch
 draw_key = 1  # Images will only be saved when greater than or equal to draw_key.
 file_name = path.split('\\')[-1][0:path.split('\\')[-1].index('.')]  # Get the file name
 
 # Hyperparameter settings
 EPOCH = 50
-BATCH_SIZE = 64
+BATCH_SIZE = 1024
 LR = 1e-4
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # Select device: CPU or GPU
 print(f'use device: {DEVICE}')
@@ -71,9 +71,8 @@ mask = True  # In the dual tower configuration: score=input, default has no mask
 # Optimizer selection
 optimizer_name = 'Adagrad'
 
-dataset_path = r"D:\Profissional\DATASETS\3W_novo"
+dataset_path = r"D:\Leonardo\3w_novo"
 x_train, x_test, y_train, y_test, n_classes = load_3w_novo(dataset_path, window_length=16, preprocessing=None, scaler=StandardScaler())
-
 
 # train_dataset = MyDataset(path, 'train')
 # test_dataset = MyDataset(path, 'test')
@@ -105,7 +104,7 @@ d_output = train_dataset.output_len  # Number of classes
 # Show dimensions
 print('data structure: [lines, timesteps, features]')
 print(f'train data size: [{DATA_LEN, d_input, d_channel}]')
-print(f'test data size: [{train_dataset.test_len, d_input, d_channel}]')
+print(f'test data size: [{test_dataset.test_len, d_input, d_channel}]')
 print(f'Number of classes: {d_output}')
 
 # Create Transformer model
@@ -126,7 +125,7 @@ loss_list = []
 time_cost = 0
 
 
-def plot_confusion_matrix(dataloader, class_names=None):
+def plot_confusion_matrix(dataloader, class_names=None, savefig_path=None):
     net.eval()
     all_preds = []
     all_labels = []
@@ -137,11 +136,13 @@ def plot_confusion_matrix(dataloader, class_names=None):
             _, label_index = torch.max(y_pre.data, dim=-1)
             all_preds.extend(label_index.cpu().numpy())
             all_labels.extend(y.cpu().numpy())
-    cm = confusion_matrix(all_labels, all_preds)
+    cm = confusion_matrix(all_labels, all_preds, normalize='true')
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
-    fig, ax = plt.subplots(figsize=(6, 6))
-    disp.plot(ax=ax, cmap='Blues', values_format='d')
+    fig, ax = plt.subplots(figsize=(9, 9))
+    disp.plot(ax=ax, cmap='Blues', values_format='.02f', text_kw={'fontsize': 8})
     plt.title("Confusion Matrix")
+    if savefig_path:
+        fig.savefig(savefig_path, dpi=300, bbox_inches="tight")
     plt.show()
 
 
@@ -198,6 +199,7 @@ def train():
         pbar.update()
 
     os.makedirs("saved_model", exist_ok=True)
+    os.makedirs("result_figure", exist_ok=True)
     dest_path = f'saved_model/{file_name} {max_accuracy} batch={BATCH_SIZE}.pkl'
     src_path = f'saved_model/{file_name} batch={BATCH_SIZE}.pkl'
     if os.path.exists(dest_path):
@@ -211,11 +213,12 @@ def train():
     result_visualization(loss_list=loss_list, correct_on_test=correct_on_test, correct_on_train=correct_on_train,
                          test_interval=test_interval,
                          d_model=d_model, q=q, v=v, h=h, N=N, dropout=dropout, DATA_LEN=DATA_LEN, BATCH_SIZE=BATCH_SIZE,
-                         time_cost=time_cost, EPOCH=EPOCH, draw_key=draw_key, reslut_figure_path=reslut_figure_path,
+                         time_cost=time_cost, EPOCH=EPOCH, draw_key=draw_key, reslut_figure_path=result_figure_path,
                          file_name=file_name,
                          optimizer_name=optimizer_name, LR=LR, pe=pe, mask=mask)
 
-    plot_confusion_matrix(test_dataloader, class_names=[str(i) for i in range(d_output)])
+    savefig_path = f'result_figure/conf_matrix {file_name} {max_accuracy} batch={BATCH_SIZE}.png'
+    plot_confusion_matrix(test_dataloader, class_names=[str(i) for i in range(n_classes)], savefig_path=savefig_path)
 
 
 if __name__ == '__main__':

@@ -24,8 +24,6 @@ def result_visualization(loss_list: list,
                          LR: float,
                          pe: bool,
                          mask: bool):
-    my_font = fp(fname=r"font/simsun.ttc")  # Set font path
-
     # Set plot style
     plt.style.use('seaborn-v0_8-pastel')
 
@@ -57,7 +55,7 @@ def result_visualization(loss_list: list,
                f'Final test accuracy: {correct_on_test[-1]}%\n'
                f'd_model={d_model}   q={q}   v={v}   h={h}   N={N}  dropout={dropout}\n'
                f'Total time: {round(time_cost, 2)} minutes',
-             fontproperties=my_font)
+            )
 
     # Save figure (only if enough epochs have passed)
     if EPOCH >= draw_key:
